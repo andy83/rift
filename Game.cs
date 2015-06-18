@@ -27,7 +27,7 @@ namespace SimpleDemo
 
         bool isVisible = true;
 
-        Vector3 playerPos = new Vector3(0,0,-10);
+        Vector3 playerPos = new Vector3(0,0,10);
 
         Layers layers = new Layers();
         OVR.LayerEyeFov layerFov;
@@ -113,7 +113,7 @@ namespace SimpleDemo
 
             // Init GL
             GL.Enable(EnableCap.DepthTest);
-            GL.ClearColor(0f, 0f, 1.0f, 1.0f);
+            GL.ClearColor(0.1f, 0.1f, 0.65f, 1.0f);
         }
 
         private void InitBuffer()
@@ -125,11 +125,15 @@ namespace SimpleDemo
             GL.GenBuffers(1, out cubeColBuf);
             GL.BindBuffer(BufferTarget.ArrayBuffer, cubeColBuf);
             GL.BufferData<Vector4>(BufferTarget.ArrayBuffer, new IntPtr(colors.Length * Vector4.SizeInBytes), colors, BufferUsageHint.StaticDraw);
+            
+            GL.EnableVertexAttribArray(1);
             GL.VertexAttribPointer(1, 4, VertexAttribPointerType.Float, false, Vector4.SizeInBytes, 0);
             
             GL.GenBuffers(1, out cubeBuf);
             GL.BindBuffer(BufferTarget.ArrayBuffer, cubeBuf);
             GL.BufferData<Vector3>(BufferTarget.ArrayBuffer, new IntPtr(cubeVertices.Length * Vector3.SizeInBytes), cubeVertices, BufferUsageHint.StaticDraw);
+            
+            GL.EnableVertexAttribArray(0);
             GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, Vector3.SizeInBytes, 0);
             
             GL.GenBuffers(1, out cubeIdxBuf);
@@ -187,32 +191,34 @@ namespace SimpleDemo
         }
 
    
-        private void RenderScene(Matrix4 viewProj, Matrix4 cubeWorld)
+        private void RenderScene(Matrix4 viewProj, Matrix4 worldCube)
         {
             // Switch to cubeshader pipeline
             GL.UseProgram(cubeProgram);
             
             // Update Viewprojection and Worldmatrix on GPU
             GL.UniformMatrix4(vpLoc, false, ref viewProj);
-            GL.UniformMatrix4(worldLoc, false, ref cubeWorld);
+            GL.UniformMatrix4(worldLoc, false, ref worldCube);
              
-            // VAO keeps the binding of the vertex and index buffer
+            // VAO keeps the attribute binding of the vertex and index buffer
             GL.BindVertexArray(vao);
              
             // Draw Cube
             GL.DrawElements(PrimitiveType.Triangles, indices.Length, DrawElementsType.UnsignedInt, IntPtr.Zero);
              
-            //Unbind
+            //Unbind VAO
             GL.BindVertexArray(0);
              
-            // Unbind
+            // Unbind shader program
             GL.UseProgram(0);
         }
+
+        float startTime = 0;
 
         protected override void OnRenderFrame(FrameEventArgs e)
         {
             base.OnRenderFrame(e);
-            float time = (float)e.Time;
+            startTime += (float)e.Time;
 
             // Get eye poses, feeding in correct IPD offset
             OVR.Vector3f[] ViewOffset = new OVR.Vector3f[] 
@@ -226,46 +232,46 @@ namespace SimpleDemo
 
             wrap.CalcEyePoses(hmdState.HeadPose.ThePose, ViewOffset, ref layerFov.RenderPose);
 
+            Matrix4 worldCube = Matrix4.CreateScale(5) * Matrix4.CreateRotationX(startTime) * Matrix4.CreateRotationY(startTime) * Matrix4.CreateRotationZ(startTime) * Matrix4.CreateTranslation(new Vector3(0, 0, -10));
+
             if (isVisible)
             {
-                for (int eye = 0; eye < 2; eye++)
+                for (int eyeIndex = 0; eyeIndex < 2; eyeIndex++)
                 {
-                    GL.Viewport(0, 0, eyeRenderTexture[eye].Width, eyeRenderTexture[eye].Height);
+                    // Pre-Increment SwapTextureIndex: First draw fails cause SubmitFrame locks texture0 anyway
+                    //eyeRenderTexture[eyeIndex].TextureSet.CurrentIndex++;
+
+                    GL.Viewport(0, 0, eyeRenderTexture[eyeIndex].Width, eyeRenderTexture[eyeIndex].Height);
                     
                     // Set and Clear Rendertarget
-                    eyeRenderTexture[eye].Bind(eyeDepthBuffer[eye].TexId);                    
+                    eyeRenderTexture[eyeIndex].Bind(eyeDepthBuffer[eyeIndex].TexId);
                     GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
-                    // Increment SwapTextureIndex
-                    eyeRenderTexture[eye].TextureSet.CurrentIndex++;
-
+                    // Post-Increment SwapTextureIndex: First draw to texture0 succeeds
+                    eyeRenderTexture[eyeIndex].TextureSet.CurrentIndex++;
+                   
                     // Setup Viewmatrix
-                    Quaternion rotationQuaternion = layerFov.RenderPose[eye].Orientation.ToTK();
+                    Quaternion rotationQuaternion = layerFov.RenderPose[eyeIndex].Orientation.ToTK();
                     Matrix4 rotationMatrix = Matrix4.CreateFromQuaternion(rotationQuaternion);
                     Vector3 lookUp = Vector3.Transform(-Vector3.UnitY, rotationMatrix);
                     Vector3 lookAt = Vector3.Transform(-Vector3.UnitZ, rotationMatrix);
 
-                    Vector3 viewPosition = playerPos + layerFov.RenderPose[eye].Position.ToTK();
-                   // Matrix4 view = Matrix4.LookAt(viewPosition, viewPosition + lookAt, lookUp);
-                    Matrix4 view = Matrix4.LookAt(new Vector3(0,0,0), new Vector3(0,0,1), new Vector3(0,1,0));
-                    Matrix4 proj = OVR.ovrMatrix4f_Projection(hmd.DefaultEyeFov[eye], 0.1f, 1000.0f, OVR.ProjectionModifier.RightHanded).ToTK();
+                    Vector3 viewPosition = playerPos + layerFov.RenderPose[eyeIndex].Position.ToTK();
+                    Matrix4 view = Matrix4.LookAt(viewPosition, viewPosition + lookAt, lookUp);
+                    Matrix4 proj = OVR.ovrMatrix4f_Projection(hmd.DefaultEyeFov[eyeIndex], 0.1f, 1000.0f, OVR.ProjectionModifier.RightHanded).ToTK();
                     proj.Transpose();
-
-                    Matrix4 worldCube = Matrix4.CreateScale(5) * Matrix4.CreateRotationX(time) * Matrix4.CreateRotationY(time) * Matrix4.CreateTranslation(new Vector3(0, 0, 10));
 
                     // OpenTK has Row Major Order and transposes matrices on the way to the shaders, thats why matrix multiplication is reverse order.
                     RenderScene(view * proj, worldCube);
                         
-                    GrabScreenshot(eyeRenderTexture[eye].Width, eyeRenderTexture[eye].Height).Save(((OVR.EyeType)eye).ToString() + ".bmp");
-
                     // Unbind bound shared textures
-                    eyeRenderTexture[eye].UnBind();
+                    eyeRenderTexture[eyeIndex].UnBind();
 
                     // Update layer
-                    layerFov.ColorTexture[eye] = eyeRenderTexture[eye].TextureSet.SwapTextureSetPtr;
-                    layerFov.Viewport[eye].Position = new OVR.Vector2i(0, 0);
-                    layerFov.Viewport[eye].Size = new OVR.Sizei(eyeRenderTexture[eye].Width, eyeRenderTexture[eye].Height);
-                    layerFov.Fov[eye] = EyeRenderDesc[eye].Fov;
+                    layerFov.ColorTexture[eyeIndex] = eyeRenderTexture[eyeIndex].TextureSet.SwapTextureSetPtr;
+                    layerFov.Viewport[eyeIndex].Position = new OVR.Vector2i(0, 0);
+                    layerFov.Viewport[eyeIndex].Size = new OVR.Sizei(eyeRenderTexture[eyeIndex].Width, eyeRenderTexture[eyeIndex].Height);
+                    layerFov.Fov[eyeIndex] = EyeRenderDesc[eyeIndex].Fov;
                 }
 
                 // Do distortion rendering, Present and flush/sync
@@ -286,8 +292,8 @@ namespace SimpleDemo
                 // Copy mirror data from mirror texture provided by OVR to backbuffer of the desktop window.
                 GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, mirrorFbo);
                 GL.BindFramebuffer(FramebufferTarget.DrawFramebuffer, 0);
-                int w = mirrorTex.Texture.Header.TextureSize.Width;
-                int h = mirrorTex.Texture.Header.TextureSize.Height;
+                int w =  mirrorTex.Texture.Header.TextureSize.Width;
+                int h =  mirrorTex.Texture.Header.TextureSize.Height;
 
                 GL.BlitFramebuffer(
                     0, h, w, 0,

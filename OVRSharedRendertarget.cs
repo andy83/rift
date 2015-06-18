@@ -13,6 +13,11 @@ namespace SimpleDemo
 
         private int fboId;
 
+        public int FboId
+        {
+            get { return fboId; }
+        }
+
         private int width, height;
 
         public int Height
@@ -62,8 +67,6 @@ namespace SimpleDemo
             get { return textureSet; }
         }
 
-        float r = 0f;
-        float g = 1f;
         public void Bind(uint depth)
         {
             OVR.GL.GLTextureData tex = textureSet.Textures[textureSet.CurrentIndex];
@@ -87,7 +90,7 @@ namespace SimpleDemo
         public void UnBind()
         {
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, fboId);
-            GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0Ext, TextureTarget.Texture2D, 0, 0);
+            GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2D, 0, 0);
             GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, TextureTarget.Texture2D, 0, 0);
         }
 
