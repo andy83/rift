@@ -15,9 +15,8 @@ namespace SimpleDemo
     {
         Wrap wrap = new Wrap();
         Hmd hmd;
-        const float Yaw = 3.141592f;
-
-        // Make eye render buffers
+      
+        // Shared textures (rendertargets)
         OvrSharedRendertarget[] eyeRenderTexture = new OvrSharedRendertarget[2];
         DepthBuffer[] eyeDepthBuffer = new DepthBuffer[2];
 
