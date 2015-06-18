@@ -69,8 +69,21 @@ namespace SimpleDemo
 
             int numberOfHeadMountedDisplays = wrap.Hmd_Detect();
 
+            // Sometimes the DK1 only gets detected after some further calls to Hmd_Detect. 
             while (numberOfHeadMountedDisplays <= 0)
             {
+                Console.WriteLine("Oculus Rift not found!");
+                Console.WriteLine("Press any key for detection or ESC for Exit");
+                ConsoleKeyInfo inf = Console.ReadKey();
+
+                switch (inf.Key)
+                {
+                    case ConsoleKey.Escape:
+                        Environment.Exit(0);
+                        break;
+                
+                }
+
                 numberOfHeadMountedDisplays = wrap.Hmd_Detect();
             }
 
