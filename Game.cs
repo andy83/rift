@@ -15,7 +15,7 @@ namespace SimpleDemo
     {
         Wrap wrap = new Wrap();
         Hmd hmd;
-      
+
         // Shared textures (rendertargets)
         OvrSharedRendertarget[] eyeRenderTexture = new OvrSharedRendertarget[2];
         DepthBuffer[] eyeDepthBuffer = new DepthBuffer[2];
@@ -26,7 +26,7 @@ namespace SimpleDemo
 
         bool isVisible = true;
 
-        Vector3 playerPos = new Vector3(0,0,-10);
+        Vector3 playerPos = new Vector3(0, 0, -10);
 
         Layers layers = new Layers();
         OVR.LayerEyeFov layerFov;
@@ -81,7 +81,7 @@ namespace SimpleDemo
                     case ConsoleKey.Escape:
                         Environment.Exit(0);
                         break;
-                
+
                 }
 
                 numberOfHeadMountedDisplays = wrap.Hmd_Detect();
@@ -120,7 +120,7 @@ namespace SimpleDemo
             hmd.ConfigureTracking(OVR.TrackingCaps.ovrTrackingCap_Orientation | OVR.TrackingCaps.ovrTrackingCap_MagYawCorrection | OVR.TrackingCaps.ovrTrackingCap_Position, OVR.TrackingCaps.None);
 
             this.VSync = VSyncMode.Off;
-            
+
             hmd.RecenterPose();
 
             // Init GL
@@ -136,21 +136,21 @@ namespace SimpleDemo
             GL.GenBuffers(1, out cubeColBuf);
             GL.BindBuffer(BufferTarget.ArrayBuffer, cubeColBuf);
             GL.BufferData<Vector4>(BufferTarget.ArrayBuffer, new IntPtr(colors.Length * Vector4.SizeInBytes), colors, BufferUsageHint.StaticDraw);
-            
+
             GL.EnableVertexAttribArray(1);
             GL.VertexAttribPointer(1, 4, VertexAttribPointerType.Float, false, Vector4.SizeInBytes, 0);
-            
+
             GL.GenBuffers(1, out cubeBuf);
             GL.BindBuffer(BufferTarget.ArrayBuffer, cubeBuf);
             GL.BufferData<Vector3>(BufferTarget.ArrayBuffer, new IntPtr(cubeVertices.Length * Vector3.SizeInBytes), cubeVertices, BufferUsageHint.StaticDraw);
-            
+
             GL.EnableVertexAttribArray(0);
             GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, Vector3.SizeInBytes, 0);
-            
+
             GL.GenBuffers(1, out cubeIdxBuf);
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, cubeIdxBuf);
             GL.BufferData<uint>(BufferTarget.ElementArrayBuffer, new IntPtr(indices.Length * sizeof(uint)), indices, BufferUsageHint.StaticDraw);
-            
+
             GL.BindVertexArray(0);
         }
 
@@ -164,7 +164,7 @@ namespace SimpleDemo
             GL.CompileShader(vshader);
 
             string info;
-         
+
             int compileResult;
             GL.GetShader(vshader, ShaderParameter.CompileStatus, out compileResult);
 
@@ -201,25 +201,25 @@ namespace SimpleDemo
             colLoc = GL.GetAttribLocation(cubeProgram, "vertex_color");
         }
 
-   
+
         private void RenderScene(Matrix4 viewProj, Matrix4 worldCube)
         {
             // Switch to cubeshader pipeline
             GL.UseProgram(cubeProgram);
-            
+
             // Update Viewprojection and Worldmatrix on GPU
             GL.UniformMatrix4(vpLoc, false, ref viewProj);
             GL.UniformMatrix4(worldLoc, false, ref worldCube);
-             
+
             // VAO keeps the attribute binding of the vertex and index buffer
             GL.BindVertexArray(vao);
-             
+
             // Draw Cube
             GL.DrawElements(PrimitiveType.Triangles, indices.Length, DrawElementsType.UnsignedInt, IntPtr.Zero);
-             
+
             //Unbind VAO
             GL.BindVertexArray(0);
-             
+
             // Unbind shader program
             GL.UseProgram(0);
         }
@@ -253,11 +253,11 @@ namespace SimpleDemo
                     eyeRenderTexture[eyeIndex].TextureSet.CurrentIndex++;
 
                     GL.Viewport(0, 0, eyeRenderTexture[eyeIndex].Width, eyeRenderTexture[eyeIndex].Height);
-                    
+
                     // Set and Clear Rendertarget
                     eyeRenderTexture[eyeIndex].Bind(eyeDepthBuffer[eyeIndex].TexId);
-                    GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
-                   
+                    GL.Clear(ClearBufferMask.DepthBufferBit | ClearBufferMask.ColorBufferBit);
+
                     // Setup Viewmatrix
                     Quaternion rotationQuaternion = layerFov.RenderPose[eyeIndex].Orientation.ToTK();
                     Matrix4 rotationMatrix = Matrix4.CreateFromQuaternion(rotationQuaternion);
@@ -271,46 +271,50 @@ namespace SimpleDemo
 
                     // OpenTK has Row Major Order and transposes matrices on the way to the shaders, thats why matrix multiplication is reverse order.
                     RenderScene(view * proj, worldCube);
-                        
+
                     // Unbind bound shared textures
                     eyeRenderTexture[eyeIndex].UnBind();
-
-                    // Update layer
-                    layerFov.ColorTexture[eyeIndex] = eyeRenderTexture[eyeIndex].TextureSet.SwapTextureSetPtr;
-                    layerFov.Viewport[eyeIndex].Position = new OVR.Vector2i(0, 0);
-                    layerFov.Viewport[eyeIndex].Size = new OVR.Sizei(eyeRenderTexture[eyeIndex].Width, eyeRenderTexture[eyeIndex].Height);
-                    layerFov.Fov[eyeIndex] = EyeRenderDesc[eyeIndex].Fov;
                 }
+            }
 
-                // Do distortion rendering, Present and flush/sync
-                OVR.ViewScaleDesc viewScale = new OVR.ViewScaleDesc()
-                {
-                    HmdToEyeViewOffset = new OVR.Vector3f[] 
+            // Do distortion rendering, Present and flush/sync
+            OVR.ViewScaleDesc viewScale = new OVR.ViewScaleDesc()
+            {
+                HmdToEyeViewOffset = new OVR.Vector3f[] 
                       {
                           ViewOffset[0],
                           ViewOffset[1]
                       },
-                    HmdSpaceToWorldScaleInMeters = 1.0f
-                };
+                HmdSpaceToWorldScaleInMeters = 1.0f
+            };
 
-                OVR.ovrResult result = hmd.SubmitFrame(0, layers);
-
-                isVisible = (result == OVR.ovrResult.Success);
-
-                // Copy mirror data from mirror texture provided by OVR to backbuffer of the desktop window.
-                GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, mirrorFbo);
-                GL.BindFramebuffer(FramebufferTarget.DrawFramebuffer, 0);
-                int w =  mirrorTex.Texture.Header.TextureSize.Width;
-                int h =  mirrorTex.Texture.Header.TextureSize.Height;
-
-                GL.BlitFramebuffer(
-                    0, h, w, 0,
-                    0, 0, w, h,
-                    ClearBufferMask.ColorBufferBit,
-                    BlitFramebufferFilter.Nearest);
-
-                GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, 0);
+            for (int eyeIndex = 0; eyeIndex < 2; eyeIndex++)
+            {
+                // Update layer
+                layerFov.ColorTexture[eyeIndex] = eyeRenderTexture[eyeIndex].TextureSet.SwapTextureSetPtr;
+                layerFov.Viewport[eyeIndex].Position = new OVR.Vector2i(0, 0);
+                layerFov.Viewport[eyeIndex].Size = new OVR.Sizei(eyeRenderTexture[eyeIndex].Width, eyeRenderTexture[eyeIndex].Height);
+                layerFov.Fov[eyeIndex] = EyeRenderDesc[eyeIndex].Fov;
             }
+           
+            OVR.ovrResult result = hmd.SubmitFrame(0, layers);
+
+            isVisible = (result == OVR.ovrResult.Success);
+
+            // Copy mirror data from mirror texture provided by OVR to backbuffer of the desktop window.
+            GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, mirrorFbo);
+            GL.BindFramebuffer(FramebufferTarget.DrawFramebuffer, 0);
+            int w = mirrorTex.Texture.Header.TextureSize.Width;
+            int h = mirrorTex.Texture.Header.TextureSize.Height;
+
+            GL.BlitFramebuffer(
+                0, h, w, 0,
+                0, 0, w, h,
+                ClearBufferMask.ColorBufferBit,
+                BlitFramebufferFilter.Nearest);
+
+            GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, 0);
+
 
             this.SwapBuffers();
         }
