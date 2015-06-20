@@ -26,7 +26,7 @@ namespace SimpleDemo
 
         bool isVisible = true;
 
-        Vector3 playerPos = new Vector3(0,0,10);
+        Vector3 playerPos = new Vector3(0,0,-10);
 
         Layers layers = new Layers();
         OVR.LayerEyeFov layerFov;
@@ -125,7 +125,6 @@ namespace SimpleDemo
 
             // Init GL
             GL.Enable(EnableCap.DepthTest);
-            GL.ClearColor(0.1f, 0.1f, 0.65f, 1.0f);
         }
 
         private void InitBuffer()
@@ -244,29 +243,26 @@ namespace SimpleDemo
 
             wrap.CalcEyePoses(hmdState.HeadPose.ThePose, ViewOffset, ref layerFov.RenderPose);
 
-            Matrix4 worldCube = Matrix4.CreateScale(5) * Matrix4.CreateRotationX(startTime) * Matrix4.CreateRotationY(startTime) * Matrix4.CreateRotationZ(startTime) * Matrix4.CreateTranslation(new Vector3(0, 0, -10));
+            Matrix4 worldCube = Matrix4.CreateScale(5) * Matrix4.CreateRotationX(startTime) * Matrix4.CreateRotationY(startTime) * Matrix4.CreateRotationZ(startTime) * Matrix4.CreateTranslation(new Vector3(0, 0, 10));
 
             if (isVisible)
             {
                 for (int eyeIndex = 0; eyeIndex < 2; eyeIndex++)
                 {
-                    // Pre-Increment SwapTextureIndex: First draw fails cause SubmitFrame locks texture0 anyway
-                    //eyeRenderTexture[eyeIndex].TextureSet.CurrentIndex++;
+                    // Increment SwapTextureIndex
+                    eyeRenderTexture[eyeIndex].TextureSet.CurrentIndex++;
 
                     GL.Viewport(0, 0, eyeRenderTexture[eyeIndex].Width, eyeRenderTexture[eyeIndex].Height);
                     
                     // Set and Clear Rendertarget
                     eyeRenderTexture[eyeIndex].Bind(eyeDepthBuffer[eyeIndex].TexId);
                     GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
-
-                    // Post-Increment SwapTextureIndex: First draw to texture0 succeeds
-                    eyeRenderTexture[eyeIndex].TextureSet.CurrentIndex++;
                    
                     // Setup Viewmatrix
                     Quaternion rotationQuaternion = layerFov.RenderPose[eyeIndex].Orientation.ToTK();
                     Matrix4 rotationMatrix = Matrix4.CreateFromQuaternion(rotationQuaternion);
-                    Vector3 lookUp = Vector3.Transform(-Vector3.UnitY, rotationMatrix);
-                    Vector3 lookAt = Vector3.Transform(-Vector3.UnitZ, rotationMatrix);
+                    Vector3 lookUp = Vector3.Transform(Vector3.UnitY, rotationMatrix);
+                    Vector3 lookAt = Vector3.Transform(Vector3.UnitZ, rotationMatrix);
 
                     Vector3 viewPosition = playerPos + layerFov.RenderPose[eyeIndex].Position.ToTK();
                     Matrix4 view = Matrix4.LookAt(viewPosition, viewPosition + lookAt, lookUp);

@@ -10,27 +10,8 @@ namespace SimpleDemo
     public class OvrSharedRendertarget
     {
         private OculusWrap.GL.SwapTextureSet textureSet;
-
-        private int fboId;
-
-        public int FboId
-        {
-            get { return fboId; }
-        }
-
+        private int fboId;      
         private int width, height;
-
-        public int Height
-        {
-            get { return height; }
-            set { height = value; }
-        }
-
-        public int Width
-        {
-            get { return width; }
-            set { width = value; }
-        }
 
         public OvrSharedRendertarget(int w, int h, Hmd hmd)
         {
@@ -50,22 +31,28 @@ namespace SimpleDemo
             }
             
             GL.GenFramebuffers(1, out fboId);
-
-            FramebufferErrorCode Status = GL.CheckFramebufferStatus(FramebufferTarget.Framebuffer);
-
-            bool success = true;
-            if (Status != FramebufferErrorCode.FramebufferComplete)
-            {
-                Console.WriteLine("FB error, status: " + Status);
-                Console.WriteLine("OvrRT :" + fboId + " CurrentIndex: " + textureSet.CurrentIndex);
-                success = false;
-            }
         }
 
+        #region Properties
+        public int FboId
+        {
+            get { return fboId; }
+        }
+
+        public int Height
+        {
+            get { return height; }
+        }
+
+        public int Width
+        {
+            get { return width; }
+        }
         public SwapTextureSet TextureSet
         {
             get { return textureSet; }
         }
+        #endregion
 
         public void Bind(uint depth)
         {
@@ -74,17 +61,6 @@ namespace SimpleDemo
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, fboId);
             GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2D, tex.TexId, 0);
             GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, TextureTarget.Texture2D, depth, 0);
-
-            // Here you can check if framebuffer is complete or not
-            FramebufferErrorCode Status = GL.CheckFramebufferStatus(FramebufferTarget.Framebuffer);
-
-            bool success = true;
-            if (Status != FramebufferErrorCode.FramebufferComplete)
-            {
-                Console.WriteLine("FB error, status: " + Status);
-                Console.WriteLine("OvrRT :" + fboId + " CurrentIndex: " + textureSet.CurrentIndex);
-                success = false;
-            }
         }
 
         public void UnBind()
